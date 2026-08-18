@@ -1,127 +1,88 @@
-# QUICKSTART — 데스크탑에서 시작하기
+# QUICKSTART
 
 **전제: [`local-rag`](https://github.com/Kim-Hakseong/local-rag) 설치가 끝나 있을 것.**
-거기서 만든 llama-server · bge-m3 · kordoc · AnythingLLM · Python 을 **그대로 재사용**한다.
-새로 받는 건 코딩용 모델 하나뿐이다.
+런타임·임베더·kordoc·Python 을 그대로 물려받으므로, 새로 받는 건 코딩용 모델 하나뿐이다.
 
 ---
 
-## 1. 클론
+## 4단계
 
 ```powershell
 cd C:\Projects
 git clone https://github.com/Kim-Hakseong/uei-rag-pipeline
-cd uei-rag-pipeline
 ```
 
-## 2. coder 모델 받기 (약 4.7 GB)
+그 다음은 **더블클릭 세 번**이다.
 
-`local-rag` 의 `models\` 옆에 같이 두면 관리가 편하다.
+| 순서 | 파일 | 하는 일 | 언제 |
+|---|---|---|---|
+| 1 | **`Setup.bat`** | 경로 상속 · VRAM 으로 ctx 산정 · 모델 4.7GB 다운로드 · API 키 발급 · Continue 설정 | 처음 한 번 |
+| 2 | **`Build-UEI.bat`** | 매뉴얼 분할 → 임베딩 | 매뉴얼 추가할 때마다 |
+| 3 | **`Start-UEI-Mode.bat`** | coder 모델로 전환 + `@uei` 서버 기동 | 코딩할 때마다 |
 
-```powershell
-curl.exe -L --fail -o "C:\Projects\kdocrag-harness\Local-rag\models\qwen2.5-coder-7b-instruct-q4_k_m.gguf" ^
-  "https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct-GGUF/resolve/main/qwen2.5-coder-7b-instruct-q4_k_m.gguf"
-```
+`Build-UEI.bat` 전에 **매뉴얼 PDF 를 `manuals-inbox\` 에 넣어둔다.** 그게 전부다.
 
-받은 뒤 크기·해시 대조 (둘 다 맞아야 한다):
+끝나면 `Stop-UEI-Mode.bat`. 일반 문서 질의로 돌아가려면 `local-rag` 의 `Start-LocalRAG.bat`.
 
-```powershell
-(Get-Item "...\qwen2.5-coder-7b-instruct-q4_k_m.gguf").Length      # 4683073536
-(Get-FileHash "...\qwen2.5-coder-7b-instruct-q4_k_m.gguf" -Algorithm SHA256).Hash
-# 509287F78CB4D4CF6B3843734733B914B2C158E43E22A7F4BF5E963800894D3C
-```
+---
 
-> Qwen 공식 저장소 파일이다. `-00001-of-00002` 로 쪼개진 것도 있는데 **단일 파일본을 받는다.**
+## 각 단계가 실제로 하는 일
 
-## 3. spec\paths.md 작성
-
-`local-rag` 것을 복사해 와서 3줄만 더 채우면 된다.
-
-```powershell
-copy spec\paths.example.md spec\paths.md
-notepad spec\paths.md
-```
-
-`local-rag\spec\paths.md` 에서 그대로 가져올 값:
-
-| 키 | 출처 |
-|---|---|
-| `KORDOC_CMD` | 그대로 복사 |
-| `LLAMA_SERVER` | 그대로 복사 (`runtime\llama-server.exe`) |
-| `BGE_M3_GGUF` | 그대로 복사 |
-| `PYTHON` | 그대로 복사 |
-
-새로 채울 값:
+### 1. Setup.bat
 
 ```
-CODER_GGUF     = C:\Projects\kdocrag-harness\Local-rag\models\qwen2.5-coder-7b-instruct-q4_k_m.gguf
-CODER_ALIAS    = qwen2.5-coder-7b
-CTX_CODER      = 32768
-NGL_CODER      = 99
-UEI_WORKSPACE  = uei-manual
-ANYTHINGLLM_URL     = http://127.0.0.1:3001
-ANYTHINGLLM_API_KEY = (다음 단계에서 발급)
+[1/7] local-rag 설치 위치 확인 (런타임·임베더 상속)
+[2/7] VRAM 확인 (CTX_CODER 산정)
+[3/7] Qwen2.5-Coder-7B 다운로드 (4.7GB)
+[4/7] AnythingLLM API 키 발급
+[5/7] spec\paths.md 생성
+[6/7] VSCode Continue 설정
+[7/7] 자가검증
 ```
 
-**API 키 발급** — AnythingLLM 이 떠 있는 상태에서:
+- **경로를 손으로 적지 않는다.** `local-rag\spec\paths.md` 에서 llama-server·bge-m3·
+  kordoc·python 을 읽어온다.
+- **ctx 를 손으로 정하지 않는다.** VRAM 을 읽어 정한다.
 
-```powershell
-curl.exe -X POST http://127.0.0.1:3001/api/system/generate-api-key
+  | VRAM | CTX_CODER |
+  |---|---|
+  | 11 GB+ | 65536 |
+  | **8 GB** | **32768** |
+  | 6 GB | 16384 |
+  | 그 미만 / GPU 없음 | 8192 |
+
+- 모델은 sha256 까지 대조한다. 받다 끊기면 **다시 실행하면 이어받는다.**
+- 기존 `~\.continue\config.yaml` 이 있으면 **백업 후** 새로 쓴다 (`config.yaml.bak-날짜`).
+- AnythingLLM 이 꺼져 있으면 API 키 단계만 건너뛴다. 켜고 다시 돌리면 채워진다.
+
+### 2. Build-UEI.bat
+
+```
+[1/3] 구조 인식 분할
+[2/3] 분할 품질 점검
+[3/3] AnythingLLM 임베딩
 ```
 
-응답의 `secret` 값을 `ANYTHINGLLM_API_KEY` 에 넣는다.
-(AnythingLLM 설정 화면 > API Keys 에서 만들어도 된다)
+- 임베더(8091)가 없으면 **알아서 띄운다.**
+- 이미 올린 파일은 건너뛴다. 여러 번 돌려도 중복되지 않는다.
+- **품질을 자동으로 본다.** 섹션이 5개 미만이거나 중앙 길이가 상한에 붙으면
+  `헤딩 인식이 약하다` 경고를 낸다 — 스캔 PDF 이거나 헤딩이 없는 문서라는 뜻이다.
+- 끝에 `전체 벡터 N → M (+K)` 가 나온다. **+0 이면 임베딩이 안 된 것**이다.
 
-> `spec\paths.md` 는 `.gitignore` 대상이라 저장소에 올라가지 않는다.
+정상 예시 (공개 매뉴얼 실측):
 
-## 4. 매뉴얼 분할
-
-UEI 매뉴얼 PDF 를 `manuals-inbox\` 에 넣고:
-
-```powershell
-python scripts\split_manual.py --input manuals-inbox --dry-run     # 먼저 통계만
-python scripts\split_manual.py --input manuals-inbox --out-dir manuals-split
+```
+OK  EN_7000_05052.pdf: 청크 584 -> 섹션 39 (길이 min 155 / 중앙 975 / max 2975)
+[OK]   EN_7000_05052.pdf: 섹션 39 / 중앙 984 자
+[ingest] 완료. 워크스페이스 문서 39건 / 전체 벡터 3494 → 3662 (+168)
 ```
 
-**`--dry-run` 결과를 먼저 볼 것.** 기대치:
+### 3. Start-UEI-Mode.bat
 
-| 지표 | 정상 범위 |
-|---|---|
-| 섹션 수 | 문서당 수십~수백 |
-| 중앙 길이 | 600~1,500자 |
-| max | `--max-chars`(기본 3000) 이하 |
+8090 을 coder 로 바꾸고, 임베더와 `@uei` 서버(8099)를 올린다.
+VRAM 8 GB 에서 일반 모델(2.4 GB)과 coder(4.7 GB)를 **동시에 못 올리므로** 전환식이다.
 
-섹션이 몇 개뿐이거나 중앙 길이가 3,000자에 붙으면 **헤딩이 안 잡힌 것**이다.
-스캔 PDF(이미지)면 텍스트가 아예 안 나온다. 그때는 아래 "문제 해결" 참조.
-
-## 5. AnythingLLM 에 투입
-
-**AnythingLLM 과 임베더(8091)가 떠 있어야 한다.** `local-rag` 의 `Start-LocalRAG.bat` 로 띄우면 된다.
-
-```powershell
-python scripts\ingest_split.py --dir manuals-split --workspace uei-manual --create
-```
-
-끝에 `전체 벡터 N → M (+K)` 가 나온다. **+0 이면 임베더가 죽은 것**이다.
-
-## 6. VSCode Continue 설정
-
-`%USERPROFILE%\.continue\config.yaml` 에 [`docs/continue-config.md`](docs/continue-config.md) 의
-블록을 붙여넣는다. 핵심 3줄:
-
-```yaml
-    apiBase: http://127.0.0.1:8090/v1     # 모델
-      contextLength: 32768                 # CTX_CODER 와 같은 값
-      url: http://127.0.0.1:8099/retrieve  # @uei
-```
-
-## 7. 코딩
-
-```powershell
-Start-UEI-Mode.bat
-```
-
-8090 을 coder 로 바꾸고, 임베더와 `@uei` 서버까지 올린다. VSCode 에서:
+VSCode 에서:
 
 ```
 @uei 인코더 분해능 설정 레지스터
@@ -129,43 +90,35 @@ Start-UEI-Mode.bat
 위 근거대로 초기화 함수를 작성해줘. 스타일은 @codebase 예제를 따라줘.
 ```
 
-끝나면 `Stop-UEI-Mode.bat`. **VSCode 와 AnythingLLM 은 안 닫는다.**
-
----
-
-## 일반 모드로 되돌리기
-
-VRAM 8 GB 에서 일반 모델(Qwen3-4B)과 coder(7B)를 **동시에 못 올린다**(2.4 + 4.7 GB + KV).
-
-```powershell
-Stop-UEI-Mode.bat                     # UEI 모드 종료
-..\kdocrag-harness\Local-rag\Start-LocalRAG.bat   # 일반 모드
-```
-
-바탕화면에 바로가기 두 개를 만들어 두면 토글처럼 쓸 수 있다.
+- `.c` 예제는 RAG 에 넣지 않는다. Continue 의 `@codebase` 가 인덱싱한다.
+- 매뉴얼 파일을 `@file` 로 넣지 말 것. 2 MB 면 약 52만 토큰이라 어떤 설정으로도 안 들어간다.
 
 ---
 
 ## 문제 해결
 
-| 증상 | 원인 / 조치 |
+| 증상 | 조치 |
 |---|---|
-| coder 기동 실패, `/health` 안 뜸 | VRAM 부족. `spec\paths.md` 의 `CTX_CODER` 를 32768 → 16384 → 8192 순으로 낮춘다. `logs\coder-*.err.log` 확인 |
-| 분할 섹션이 몇 개 안 나옴 | 헤딩 인식 실패. `--max-chars 1500` 으로 낮춰 강제 분할하거나, 원본이 스캔 PDF 인지 확인 |
-| 스캔 PDF 라 텍스트가 없음 | 이 파이프라인은 OCR 을 하지 않는다. Acrobat 등으로 OCR 후 투입 |
-| `ingest` 가 `+0 벡터` | 임베더(8091)가 죽었다. `Start-LocalRAG.bat` 로 먼저 띄운다 |
-| `@uei` 가 Continue 에 안 보임 | Continue 재시작. config 문법 오류면 Continue 출력 패널에 뜬다 |
-| `@uei` 가 "HTTP 403" | `ANYTHINGLLM_API_KEY` 가 틀렸다 |
-| `@uei` 가 "검색 결과 없음" | 워크스페이스에 매뉴얼이 실제로 임베딩됐는지 문서 관리 화면에서 확인. **검색 실패 진단의 1단계는 목록 실사다** |
-| 답이 엉뚱함 | 인덱스 번호만 쓰지 말고 문서에 적힌 명칭을 함께 넣는다. `0x607B의 정의는?`(실패) → `Position Range Limit 오브젝트는?`(성공) |
-| 응답이 매우 느림 | 자동완성(FIM) 모델을 뺀다. 8 GB 에서 채팅과 같이 쓰면 느려질 수 있다 |
+| Setup 이 "local-rag 를 찾지 못했다" | `Setup.bat` 대신 `powershell -File setup.ps1 -LocalRagPath C:\경로\local-rag` |
+| 모델 다운로드가 끊김 | **그냥 다시 실행.** 이어받는다 |
+| coder 가 안 뜸 (`/health` 무응답) | VRAM 부족. `spec\paths.md` 의 `CTX_CODER` 를 한 단계 낮춘다 (32768 → 16384 → 8192). `logs\coder-*.err.log` 확인 |
+| Build 가 "헤딩 인식이 약하다" | 스캔 PDF 일 수 있다. `powershell -File scripts\build_uei.ps1 -MaxChars 1500` 으로 강제 분할하거나 원본을 OCR 한다 |
+| Build 결과가 `+0 벡터` | 임베더가 죽었다. `local-rag` 의 `Start-LocalRAG.bat` 로 띄우고 다시 실행 |
+| `@uei` 가 Continue 에 안 보임 | Continue 재시작. config 오류면 Continue 출력 패널에 뜬다 |
+| `@uei` 가 "HTTP 403" | AnythingLLM 을 켠 뒤 `Setup.bat` 재실행 (키 재발급) |
+| `@uei` 가 "검색 결과 없음" | 워크스페이스 문서 목록부터 확인한다. **검색 실패 진단의 1단계는 목록 실사다** |
+| 답이 엉뚱함 | 인덱스 번호만 쓰지 말 것. `0x607B의 정의는?`(실패) → `Position Range Limit 오브젝트는?`(성공) |
+| 응답이 느림 | 자동완성(FIM)을 쓰지 않는다. 8 GB 에서 채팅과 같이 돌리면 느려진다 |
 
 ---
 
-## 이 문서가 보장하지 못하는 것
+## 이 장비에서 처음 검증되는 것
 
-아래는 **이 장비에서 처음 검증되는 것**들이다. 안 되면 위 표대로 조치하고, 결과를 기록해 두면 좋다.
+아래는 **아직 실측되지 않았다.** 안 되면 위 표대로 조치하고 결과를 알려주면 문서에 반영한다.
 
-- Coder-7B 가 8 GB 에서 `ctx 32768` 로 실제로 뜨는지 — KV 계수는 추정치다
-- Continue 가 `@uei` 를 실제로 호출하는지 — 서버 단독 동작만 확인했다
-- UEI 매뉴얼의 헤딩 구조가 분할에 적합한지 — 공개 CANopen 매뉴얼로만 검증했다
+- **Coder-7B 가 8 GB 에서 ctx 32768 로 뜨는지** — KV 계수 0.045 MiB/토큰은
+  Qwen3-4B 실측(0.115)을 구조비로 환산한 추정치다
+- **Continue 가 `@uei` 를 실제로 호출하는지** — 서버 단독 동작만 확인했다
+- **UEI 매뉴얼의 헤딩 구조** — 공개 CANopen 매뉴얼로만 검증했다
+
+Setup / Build 자체는 이 저장소를 만든 장비(RTX 2050 4GB)에서 **끝까지 돌려 확인**했다.

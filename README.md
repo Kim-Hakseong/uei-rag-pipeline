@@ -185,7 +185,9 @@ VSCode 에서:
 | `split_manual.py` | **검증 완료** — 4.9 MB PDF → 208 섹션 |
 | `ingest_split.py` | **검증 완료** — 208건 투입, +976 벡터 |
 | `context_server.py` | **검증 완료** — self-test 로 근거 반환 확인 |
-| `serve_coder.ps1` / 배치 2개 | 작성됨 — **coder 모델이 없어 실기동 미검증** |
+| `setup.ps1` (7단계 원클릭) | **검증 완료** — 노트북에서 전 단계 실행 |
+| `build_uei.ps1` (분할+임베딩) | **검증 완료** — PDF 1건 → 39섹션 → +168 벡터 |
+| `serve_coder.ps1` / 배치 4개 | 작성됨 — **coder 모델이 없어 실기동 미검증** |
 | `docs/continue-config.md` | 작성됨 — **Continue 실연동 미검증** |
 | A/B 검색 개선 | **실측 완료** (위 표) |
 | UEI 실매뉴얼 | **미실행** — 문서가 있는 장비에서 |
