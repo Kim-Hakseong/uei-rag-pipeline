@@ -81,6 +81,25 @@ UEI 매뉴얼 대신 공개 매뉴얼로 검증한 결과다.
 | 3,000자 초과 | **0건** |
 | 분포 | <500: 27 · 500–1500: 110 · 1500–3000: 71 |
 
+### A/B — 분할이 검색을 실제로 바꾸는가
+
+같은 문서, 같은 질문, 같은 임베더(bge-m3). **통짜 md** 워크스페이스와
+**분할 산출물** 워크스페이스만 다르다.
+
+| 질문 | 통짜 md | 구조 분할 |
+|---|---|---|
+| `Position Range Limit object definition` | 0.4451 — 약어표·목차 파편 | **0.5788** — `0x607A Target Position` 오브젝트 표 |
+| `encoder resolution setting` | 0.5424 — 무관한 표 | **0.7043** — *"In the object 0x2315.02, set the encoder resolution to…"* |
+
+유사도가 오른 것보다 **가져온 내용이 답에 해당한다는 점**이 중요하다.
+통짜 쪽은 네 건 모두 파편이었고, 분할 쪽 1위는 설정 절차 문단이었다.
+
+컨텍스트 서버를 거치면 근거 위치가 파일명으로 드러난다:
+
+```
+UEI 1. 055__Tab.-23-Configuration-of-the-encoder-type-in-object-0x2315.0.md  (유사도 0.7043)
+```
+
 분할 결과 예:
 
 ```markdown
@@ -100,6 +119,16 @@ UEI 매뉴얼 대신 공개 매뉴얼로 검증한 결과다.
 
 ## 사용법
 
+### 0. 준비 (한 번만)
+
+```powershell
+copy spec\paths.example.md spec\paths.md    # 열어서 경로를 채운다
+# AnythingLLM API 키 발급
+curl -X POST http://127.0.0.1:3001/api/system/generate-api-key
+```
+
+`spec/paths.md` 는 `.gitignore` 대상이라 개인 경로·키가 저장소에 올라가지 않는다.
+
 ### 1. 매뉴얼 분할
 
 ```powershell
@@ -117,14 +146,33 @@ python scripts\split_manual.py --input manuals-inbox --dry-run     # 통계만
 
 ### 2. AnythingLLM 에 투입
 
-`manuals-split/<문서>/*.md` 를 매뉴얼 전용 워크스페이스에 넣는다.
-`_index.json` 은 넣지 않는다(기계 판독용).
+```powershell
+python scripts\ingest_split.py --dir manuals-split --workspace uei-manual --create
+```
+
+업로드 → 임베딩 → **벡터 수 재조회로 실제 반영 확인**까지 한다.
+임베더(8091)가 죽어 있으면 업로드는 성공하고 임베딩만 조용히 실패하기 때문이다.
+이미 올라간 파일은 건너뛴다(중복 업로드 방지).
+`_index.json` 은 투입하지 않는다 — 기계 판독용 메타이지 문서가 아니다.
 
 ### 3. 코딩
 
-VSCode 에서 `@uei <찾을 내용>` — 매뉴얼 근거가 컨텍스트에 자동 삽입된다.
-`.c` 예제 파일은 RAG 에 넣지 말고 Continue 의 `@codebase` 로 인덱싱한다.
-예제 코드를 512자로 쪼개면 함수가 잘려 오히려 나빠진다.
+```powershell
+Start-UEI-Mode.bat      # 8090 을 coder 로 전환 + 임베더 + @uei 서버
+```
+
+VSCode 에서:
+
+```
+@uei 인코더 분해능 설정 레지스터
+
+위 근거대로 초기화 함수를 작성해줘. 스타일은 @codebase 예제를 따라줘.
+```
+
+- `.c` 예제는 **RAG 에 넣지 않는다.** Continue 의 `@codebase` 로 인덱싱한다.
+  예제 코드를 512자로 쪼개면 함수가 잘려 오히려 나빠진다.
+- 설정은 [`docs/continue-config.md`](docs/continue-config.md).
+- 끝나면 `Stop-UEI-Mode.bat` (8090/8091/8099 만 내린다. VSCode·AnythingLLM 은 그대로).
 
 ---
 
@@ -132,13 +180,23 @@ VSCode 에서 `@uei <찾을 내용>` — 매뉴얼 근거가 컨텍스트에 자
 
 | 구성요소 | 상태 |
 |---|---|
-| `split_manual.py` | **동작 검증 완료** (공개 매뉴얼 4.9 MB) |
-| `spec/paths.example.md` | 작성됨 |
-| 컨텍스트 서버 (`:8099`) | **미구현** |
-| Continue 설정 템플릿 | **미구현** |
-| 프로파일 전환 (토글) | **미구현** |
-| UEI 실매뉴얼 검증 | **미실행** — 문서가 있는 장비에서 수행 |
-| Coder-7B ctx 실측 | **미실행** — VRAM 계수는 추정치 |
+| `split_manual.py` | **검증 완료** — 4.9 MB PDF → 208 섹션 |
+| `ingest_split.py` | **검증 완료** — 208건 투입, +976 벡터 |
+| `context_server.py` | **검증 완료** — self-test 로 근거 반환 확인 |
+| `serve_coder.ps1` / 배치 2개 | 작성됨 — **coder 모델이 없어 실기동 미검증** |
+| `docs/continue-config.md` | 작성됨 — **Continue 실연동 미검증** |
+| A/B 검색 개선 | **실측 완료** (위 표) |
+| UEI 실매뉴얼 | **미실행** — 문서가 있는 장비에서 |
+| Coder-7B ctx / VRAM | **미실행** — 계수는 추정치 |
+
+### 이 저장소가 아직 증명하지 못한 것
+
+- **Coder-7B 가 8GB 에서 ctx 32768 로 실제로 뜨는지.** KV 계수 0.045 MiB/토큰은
+  Qwen3-4B 실측(0.115)을 구조비로 환산한 값이라 실측이 아니다.
+- **Continue 가 `@uei` 를 실제로 호출하는지.** HTTP context provider 규격에 맞춰
+  요청/응답을 구현했고 서버 단독 동작은 확인했으나, 에디터에서 끝까지 돌려보지 않았다.
+- **UEI 매뉴얼의 구조가 CANopen 매뉴얼과 비슷한지.** 헤딩이 없거나 스캔 PDF 면
+  분할 품질이 달라진다.
 
 `spec/paths.md`, `manuals-inbox/`, `manuals-split/`, `*.c` 는 `.gitignore` 대상이다.
 **매뉴얼 원본과 예제 코드는 저장소에 올리지 않는다.**
