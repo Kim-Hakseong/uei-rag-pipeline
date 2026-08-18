@@ -1,0 +1,24 @@
+# ── 실데이터: 절대 커밋 금지 ────────────────────────────────
+# UEI 매뉴얼 원본·변환본·예제 코드는 저작권/영업자산이다.
+manuals-inbox/
+manuals-md/
+manuals-split/
+samples/
+*.pdf
+*.c
+*.h
+
+# 로컬 환경 값 (장비별 경로·API 키)
+spec/paths.md
+spec/secrets.md
+
+# 런타임/모델
+runtime/
+models/
+*.gguf
+
+# 로그·캐시
+logs/
+__pycache__/
+.venv/
+node_modules/
