@@ -3,7 +3,7 @@
 대용량 기술 매뉴얼(PDF)을 **구조 인식 섹션**으로 쪼개 로컬 RAG 로 검색하고,
 그 근거를 **VSCode Continue 안에서 바로** 코딩에 쓰는 파이프라인. 완전 오프라인.
 
-일반 문서 질의응답용 [`local-rag`](https://github.com/Kim-Hakseong/local-rag) 의 자매 프로젝트다.
+**처음이라면 → [QUICKSTART.md](QUICKSTART.md)** (local-rag 설치 후 10분)nn일반 문서 질의응답용 [`local-rag`](https://github.com/Kim-Hakseong/local-rag) 의 자매 프로젝트다.
 저 쪽은 **AnythingLLM 에서 읽고 묻는** 용도, 이 쪽은 **에디터에서 코딩하는** 용도다.
 
 ---
